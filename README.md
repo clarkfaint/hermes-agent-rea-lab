@@ -8,7 +8,7 @@ This repo documents how I built and extended the lab, including the problems I h
 
 | # | Lab | What it covers | Status |
 |---|---|---|---|
-| 01 | [Hermes Agent Deployment](labs/01-hermes-agent-deployment/README.md) | Deploying Nous Research's Hermes Agent in an Ubuntu Server VM on Proxmox, with access through Hermes Desktop and Slack | Writeup in progress |
+| 01 | [Hermes Agent Deployment](labs/01-hermes-agent-deployment/README.md) | Deploying Nous Research's Hermes Agent in an Ubuntu Server VM on Proxmox, with access through Hermes Desktop and Slack | Complete |
 | 02 | [REA Integration](labs/02-rea-integration/README.md) | Connecting REA as an MCP server, fixing its runtime environment, trimming 229 tools to 26 static-analysis tools, and a first SBOM exercise | Complete |
 
 ## Lab environment
