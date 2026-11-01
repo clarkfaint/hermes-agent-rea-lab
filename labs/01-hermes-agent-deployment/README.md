@@ -244,7 +244,7 @@ hermes gateway restart
 
 - [x] Extend Hermes with reverse-engineering tools: [Lab 02: REA Integration](../02-rea-integration/README.md)
 - [ ] Resolve the Slack model-routing issue
-- [ ] Set a spending limit on the OpenRouter API key
+- [x] Set a spending limit on the OpenRouter API key
 - [ ] Tailscale for secure remote access to Hermes Desktop outside the home
 - [ ] HTTPS for the dashboard through Nginx Proxy Manager
 - [ ] Weekly Proxmox backup job for the VM
