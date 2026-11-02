@@ -3,7 +3,7 @@
 > Part of [hermes-agent-rea-lab](../../README.md). Next: [Lab 02: REA Integration](../02-rea-integration/README.md)
 
 **Date:** November 2026
-**Status:** Complete. Hermes Agent runs in a dedicated Ubuntu Server VM on Proxmox and is reachable through Slack and Hermes Desktop. One known issue with model routing in Slack is open (see [Known issues](#known-issues)).
+**Status:** Complete. Hermes Agent runs in a dedicated Ubuntu Server VM on Proxmox and is reachable through Slack and Hermes Desktop. Slack model switching is handled with a per-channel override (see [Slack model switching](#slack-model-switching)).
 
 ## Overview
 
@@ -205,21 +205,48 @@ Took a Proxmox snapshot, `hermes-working`, once everything was running.
 | 7 | Dashboard password step failed with `venv/bin/python3: No such file or directory`, and the rest of the block wrote an empty hash to `.env` | Hermes doesn't use a standard `venv`; its Python lives in Hermes-managed environments under `~/.hermes/tools/` | Removed the bad lines (`sed -i '/^HERMES_DASHBOARD_BASIC_AUTH_/d' ~/.hermes/.env`), ran `source ./activate` to use Hermes's Python, and reran with a check that the hash isn't empty before writing it |
 | 8 | `cua-driver` error about missing `libXi.so.6` during `source ./activate` | That driver is for the Computer Use tool | Ignored, since Computer Use is disabled on this headless VM |
 
-## Known issues
+## Slack model switching
 
-**Slack may still use the default model after switching to Codex.** After running `/model` in Slack to switch to Codex, `/model` showed Codex, but Hermes said it was on Inkling, and new Inkling requests kept appearing in OpenRouter's activity log. `hermes gateway restart` and `/new` didn't change it.
+**Goal:** Keep Inkling (free) as the default, and use Codex (ChatGPT Plus) when I need it.
 
-Two likely causes:
-- Background side tasks (such as titles or summaries) use the default model, so some Inkling traffic is expected.
-- The gateway isn't applying the per-session switch.
+**Problem:** Switching with `/model` in Slack never stuck. Slack confirmed "Model switched," but replies still ran on Inkling.
 
-Next steps: compare request sizes in OpenRouter's activity log to tell side tasks apart from full conversations, and if needed, make Codex the default:
+**Investigation:**
+
+1. Asking the agent which model it was on wasn't reliable, so I used the logs as the source of truth. `agent.log` contains a binary character, so `grep` needs `-a` to search all of it:
+   ```bash
+   grep -a -n "provider=" ~/.hermes/logs/agent.log | tail -8
+   ```
+2. Matching session IDs between `gateway.log` and `agent.log` showed the cause. My reply in the `/model` thread ran in a **new session** (`history=0`) on Inkling. Hermes treats each Slack thread as its own session, and the session ID ends in the thread's timestamp.
+3. Slack doesn't allow app slash commands inside threads ("/model is not supported in threads"). In a channel, `/model` runs at the top level, so the override attaches to a session that thread replies never use. In the Hermes DM, every conversation is a thread, so `/model` can't run at all.
+4. `/new` and `hermes gateway restart` made it worse, since both reset session-only overrides back to the default.
+5. Some Inkling traffic is expected regardless: the `auxiliary` jobs (titles, compression, session search) are set to `auto` and use the default provider.
+
+**Fix: a dedicated Codex channel.** Hermes supports per-channel model overrides, keyed by Slack channel ID. I created `#hermes-codex` and added this under `platforms: → slack:` in `~/.hermes/config.yaml` (backup: `config.yaml.pre-channel-override`):
+
+```yaml
+platforms:
+  slack:
+    channel_overrides:
+      "<CHANNEL_ID>":
+        model: gpt-6-luna
+        provider: openai-codex
+```
+
+The gateway reads overrides at startup, so it needed a restart:
 
 ```bash
-hermes config set model.provider openai-codex
-hermes config set model.default gpt-6-luna
 hermes gateway restart
 ```
+
+**Verification:** After the restart, a message in `#hermes-codex` logged `model=gpt-6-luna provider=openai-codex`, while Hermes Desktop and `#hermes-home` stayed on Inkling.
+
+| Where I post | Model |
+|---|---|
+| `#hermes-home`, DM, Hermes Desktop | Inkling via OpenRouter (default) |
+| `#hermes-codex` | `gpt-6-luna` via Codex (ChatGPT Plus) |
+
+Switching models now just means posting in a different channel.
 
 ## Security considerations
 
@@ -239,11 +266,13 @@ hermes gateway restart
 4. **Placeholders are a trap in bash.** `<` and `>` are redirection operators, so leftover angle brackets cause confusing errors.
 5. **Check values before you write them.** A failed command inside a block still let the rest run and save an empty password hash. Testing that the value isn't empty first prevents that.
 6. **Small VM, hosted models.** With inference hosted, 2 cores and 4 GB of RAM run Hermes comfortably.
+7. **Logs beat self-reports.** The model's claims about its own model were sometimes right and sometimes wrong. Matching session IDs across `gateway.log` and `agent.log` gave a definitive answer.
+8. **Know your platform's limits.** The routing "bug" was really Slack's thread model meeting Hermes's per-thread sessions. Moving the setting into config, rather than a chat command, avoided it entirely.
 
 ## Next steps
 
 - [x] Extend Hermes with reverse-engineering tools: [Lab 02: REA Integration](../02-rea-integration/README.md)
-- [ ] Resolve the Slack model-routing issue
+- [x] Resolve the Slack model-routing issue (per-channel override)
 - [x] Set a spending limit on the OpenRouter API key
 - [ ] Tailscale for secure remote access to Hermes Desktop outside the home
 - [ ] HTTPS for the dashboard through Nginx Proxy Manager
