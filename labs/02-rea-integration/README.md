@@ -3,7 +3,7 @@
 > Part of [hermes-agent-rea-lab](../../README.md). Previous: [Lab 01: Hermes Agent Deployment](../01-hermes-agent-deployment/README.md)
 
 **Date:** November 1, 2026
-**Status:** Complete. REA is connected to Hermes as an MCP server, trimmed to 26 static-analysis tools, and verified with a live tool call.
+**Status:** In progress. REA is connected to Hermes as an MCP server, trimmed to 26 static-analysis tools, and verified with a live tool call. The package metadata comparison for the SBOM exercise is still open.
 
 ## Overview
 
@@ -229,7 +229,7 @@ dpkg -s <package-name>                      # look for a Built-Using field
 ## Security considerations
 
 - **Prompt injection:** Analysis results feed text from the target file (strings, code, payloads) directly to the model. A hostile file could contain text written to steer the agent. This VM holds API credentials and a Slack connection, and Hermes has shell access.
-- **Rule for this VM:** Static analysis only, on trusted files, practice targets, or software I'm authorized to examine. Runtime tools (Frida, process/browser capture) are excluded by the allow-list.
+- **Rule for this VM:** Static analysis only, on trusted files, practice targets, or software I'm authorized to examine. The allow-list keeps runtime tools (Frida, process/browser capture) out of REA's exposed tools, but it doesn't restrict Hermes's shell, so this is a usage rule rather than a technical control.
 - **Untrusted samples belong elsewhere:** Anything untrusted or that needs to be executed should go to a separate, credential-free analysis VM on an isolated network segment.
 - **Data handling:** Tool output goes to the configured model provider. Don't analyze anything I'm not comfortable sharing with that provider.
 - **Legal:** REA's own disclaimer limits it to lawful research, interoperability, education, preservation, and software you own or are authorized to examine. Many commercial EULAs prohibit reverse engineering, so client work requires written authorization.
